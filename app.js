@@ -9,6 +9,8 @@ var expressValidator = require('express-validator');
 var session = require('express-session');
 var MySQLStore = require('express-mysql-session')(session);
 var passport = require('passport');
+var bcrypt = require('bcrypt')
+var LocalStrategy = require('passport-local').Strategy;
 
 var index = require('./routes/index');
 var users = require('./routes/users');
@@ -25,7 +27,9 @@ app.set('view engine', 'hbs');
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({
+  extended: false
+}));
 app.use(expressValidator())
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -34,7 +38,7 @@ var options = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database : process.env.DB_NAME,
+  database: process.env.DB_NAME,
   socketPath: '/opt/lampp/var/mysql/mysql.sock'
 };
 
@@ -54,6 +58,29 @@ app.use(passport.session());
 app.use('/', index);
 app.use('/users', users);
 
+passport.use(new LocalStrategy(
+  function(username, password, done) {
+  const db = require('./db');
+
+  db.query('SELECT idusers, password FROM users WHERE username = ?', [username], function(err, results, fields) {
+    if (err) {done(err)};
+
+    if (results.length === 0) {
+      done(null, false);
+    }
+
+    const hash = results[0].password.toString();
+
+    bcrypt.compare(password, hash, function(err, response) {
+      if ( response === true) {
+        return done(null, {user_id: results[0].idusers});
+      } else {
+        return done(null,false);
+      }
+    });
+  })
+  }
+));
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found');
@@ -81,7 +108,7 @@ const partialsDir = __dirname + '/views/partials';
 
 const filenames = fs.readdirSync(partialsDir);
 
-filenames.forEach(function (filename) {
+filenames.forEach(function(filename) {
   const matches = /^([^.]+).hbs$/.exec(filename);
   if (!matches) {
     return;
@@ -92,7 +119,7 @@ filenames.forEach(function (filename) {
 });
 
 hbs.registerHelper('json', function(context) {
-    return JSON.stringify(context, null, 2);
+  return JSON.stringify(context, null, 2);
 });
 
 
