@@ -7,6 +7,7 @@ var bodyParser = require('body-parser');
 var expressValidator = require('express-validator');
 
 var session = require('express-session');
+var MySQLStore = require('express-mysql-session')(session);
 var passport = require('passport');
 
 var index = require('./routes/index');
@@ -29,12 +30,24 @@ app.use(expressValidator())
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+var options = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database : process.env.DB_NAME,
+  socketPath: '/opt/lampp/var/mysql/mysql.sock'
+};
+
+var sessionStore = new MySQLStore(options);
+
 app.use(session({
   secret: 'asdzxcqeq123dadczqe2sa1ed3s21d8sdf9',
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
+  store: sessionStore,
   // cookie: { secure: true }
 }))
+
 app.use(passport.initialize());
 app.use(passport.session());
 
